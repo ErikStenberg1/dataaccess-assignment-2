@@ -27,6 +27,7 @@ namespace Assignment2
         private ComboBox selectFeedComboBox;
         private Button loadArticlesButton;
         private StackPanel articlePanel;
+        private string firstTitle;
 
         public MainWindow()
         {
@@ -81,6 +82,7 @@ namespace Assignment2
             };
             grid.Children.Add(addFeedButton);
             Grid.SetColumn(addFeedButton, 2);
+            addFeedButton.Click += AddFeedButton_Click;
 
             var selectFeedLabel = new Label
             {
@@ -155,7 +157,19 @@ namespace Assignment2
             response.EnsureSuccessStatusCode();
             var stream = await response.Content.ReadAsStreamAsync();
             var feed = XDocument.Load(stream);
+            firstTitle = feed.Descendants("title").First().Value;
             return feed;
+        }
+        private void AddFeedButton_Click(object sender, RoutedEventArgs e)
+        {
+            AddFeed();
+        }
+        private async void AddFeed()
+        {
+            addFeedButton.IsEnabled = false;
+            await LoadDocumentAsync(addFeedTextBox.Text);
+            addFeedButton.IsEnabled = true;
+            selectFeedComboBox.Items.Add(firstTitle);
         }
     }
 }
