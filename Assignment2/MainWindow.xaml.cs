@@ -17,6 +17,14 @@ using System.Xml.Linq;
 
 namespace Assignment2
 {
+    public class Article
+    {
+        public string Title { get; set; }
+        public string Url { get; set; }
+        public string FirstTitle { get; set; }
+        public DateTime Date { get; set; }
+
+    }
     public partial class MainWindow : Window
     {
         private Thickness spacing = new Thickness(5);
@@ -27,7 +35,10 @@ namespace Assignment2
         private ComboBox selectFeedComboBox;
         private Button loadArticlesButton;
         private StackPanel articlePanel;
+        private XDocument document;
+        private Dictionary<string, string> titleUrl = new Dictionary<string, string>();
         private string firstTitle;
+        private string url;
 
         public MainWindow()
         {
@@ -101,6 +112,8 @@ namespace Assignment2
             grid.Children.Add(selectFeedComboBox);
             Grid.SetRow(selectFeedComboBox, 1);
             Grid.SetColumn(selectFeedComboBox, 1);
+            selectFeedComboBox.Items.Add("All Feeds");
+            
 
             loadArticlesButton = new Button
             {
@@ -111,6 +124,7 @@ namespace Assignment2
             grid.Children.Add(loadArticlesButton);
             Grid.SetRow(loadArticlesButton, 1);
             Grid.SetColumn(loadArticlesButton, 2);
+            loadArticlesButton.Click += LoadArticlesButton_Click;
 
             articlePanel = new StackPanel
             {
@@ -157,19 +171,32 @@ namespace Assignment2
             response.EnsureSuccessStatusCode();
             var stream = await response.Content.ReadAsStreamAsync();
             var feed = XDocument.Load(stream);
-            firstTitle = feed.Descendants("title").First().Value;
             return feed;
         }
-        private void AddFeedButton_Click(object sender, RoutedEventArgs e)
-        {
-            AddFeed();
-        }
-        private async void AddFeed()
+        private async void AddFeedButton_Click(object sender, RoutedEventArgs e)
         {
             addFeedButton.IsEnabled = false;
-            await LoadDocumentAsync(addFeedTextBox.Text);
-            addFeedButton.IsEnabled = true;
+            url = addFeedTextBox.Text;
+            document = await LoadDocumentAsync(url);
+            firstTitle = document.Descendants("title").First().Value;
             selectFeedComboBox.Items.Add(firstTitle);
+            titleUrl.Add(firstTitle, url);
+            addFeedTextBox.Clear();
+            addFeedButton.IsEnabled = true;
         }
+        private async void LoadArticlesButton_Click(object sender, RoutedEventArgs e)
+        {
+            loadArticlesButton.IsEnabled = false;
+            firstTitle = selectFeedComboBox.SelectedItem.ToString();
+
+            
+
+            loadArticlesButton.IsEnabled = true;
+        }
+        private void CreateArticles(Article article)
+        {
+
+        }
+
     }
 }
