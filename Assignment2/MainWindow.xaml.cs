@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -20,7 +21,6 @@ namespace Assignment2
     public class Article
     {
         public string Title { get; set; }
-        public string Url { get; set; }
         public string FirstTitle { get; set; }
         public DateTime Date { get; set; }
 
@@ -36,9 +36,11 @@ namespace Assignment2
         private Button loadArticlesButton;
         private StackPanel articlePanel;
         private XDocument document;
+        private List<Article> articles = new List<Article>();
         private Dictionary<string, string> titleUrl = new Dictionary<string, string>();
         private string firstTitle;
         private string url;
+
 
         public MainWindow()
         {
@@ -113,7 +115,7 @@ namespace Assignment2
             Grid.SetRow(selectFeedComboBox, 1);
             Grid.SetColumn(selectFeedComboBox, 1);
             selectFeedComboBox.Items.Add("All Feeds");
-            
+
 
             loadArticlesButton = new Button
             {
@@ -134,39 +136,14 @@ namespace Assignment2
             grid.Children.Add(articlePanel);
             Grid.SetRow(articlePanel, 2);
             Grid.SetColumnSpan(articlePanel, 3);
-
-            // These are just placeholders.
-            // Replace them with your own code that shows actual articles.
-            for (int i = 0; i < 3; i++)
-            {
-                var articlePlaceholder = new StackPanel
-                {
-                    Orientation = Orientation.Vertical,
-                    Margin = spacing
-                };
-                articlePanel.Children.Add(articlePlaceholder);
-
-                var articleTitle = new TextBlock
-                {
-                    Text = "2021-01-02 12:34 - Placeholder for an actual article title #" + (i + 1),
-                    FontWeight = FontWeights.Bold,
-                    TextTrimming = TextTrimming.CharacterEllipsis
-                };
-                articlePlaceholder.Children.Add(articleTitle);
-
-                var articleWebsite = new TextBlock
-                {
-                    Text = "Website name #" + (i + 1)
-                };
-                articlePlaceholder.Children.Add(articleWebsite);
-            }
+            
         }
 
         private async Task<XDocument> LoadDocumentAsync(string url)
         {
             // This is just to simulate a slow/large data transfer and make testing easier.
             // Remove it if you want to.
-            await Task.Delay(1000);
+            //await Task.Delay(1000);
             var response = await http.GetAsync(url);
             response.EnsureSuccessStatusCode();
             var stream = await response.Content.ReadAsStreamAsync();
@@ -180,23 +157,87 @@ namespace Assignment2
             document = await LoadDocumentAsync(url);
             firstTitle = document.Descendants("title").First().Value;
             selectFeedComboBox.Items.Add(firstTitle);
+            //Adds the first title and url to a dictionary
             titleUrl.Add(firstTitle, url);
             addFeedTextBox.Clear();
             addFeedButton.IsEnabled = true;
         }
         private async void LoadArticlesButton_Click(object sender, RoutedEventArgs e)
         {
+            articlePanel.Children.Clear();
+            articles.Clear();
             loadArticlesButton.IsEnabled = false;
             firstTitle = selectFeedComboBox.SelectedItem.ToString();
+            //If "all feeds" is selected
+            if (selectFeedComboBox.SelectedIndex == 0)
+            {
+                var task = new List<string>();
+                foreach (var title in titleUrl)
+                {
+                    task.Add(title.Value);
+                }
+                var tasks = task.Select(LoadDocumentAsync).ToList();
+                var result = await Task.WhenAll(tasks);
+                CreateArticles(result);
 
+            }
             
+            else
+            {
+                //If any specific feed is selected
+                url = titleUrl[selectFeedComboBox.SelectedItem.ToString()];
+                document = await LoadDocumentAsync(url);
+                XDocument[] xDocuments = { document };
+                CreateArticles(xDocuments);
 
+            }
             loadArticlesButton.IsEnabled = true;
         }
-        private void CreateArticles(Article article)
+        private void CreateArticles(XDocument[] xDocuments)
         {
+            List<Article> articles = new List<Article>();
+            foreach (var document in xDocuments)
+            {
+                for (int i = 0; i < 5; i++) 
+                {
+                    string firstTitle = document.Descendants("title").First().Value;
+                    string[] titles = document.Descendants("title").Skip(2).Select(t => t.Value).ToArray();
+                    string[] dates = document.Descendants("pubDate").Select(p => p.Value).ToArray();
 
+                    Article article = new Article
+                    {
+                        FirstTitle = firstTitle,
+                        Title = titles[i],
+                        Date = DateTime.ParseExact(dates[i].Substring(0, 25), "ddd, dd MMM yyyy HH:mm:ss", CultureInfo.InvariantCulture),
+                    };
+                    articles.Add(article);
+                }
+                
+            }
+
+            foreach (var article in articles.OrderByDescending(a => a.Date))
+            {
+                var stackPanel = new StackPanel
+                {
+                    Orientation = Orientation.Vertical,
+                    Margin = spacing
+                };
+                articlePanel.Children.Add(stackPanel);
+
+                var articleTitle = new TextBlock
+                {
+                    Text = Convert.ToString(article.Date + "-" + article.Title),
+                    FontWeight = FontWeights.Bold,
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                };
+                stackPanel.Children.Add(articleTitle);
+
+                var articleWebsite = new TextBlock
+                {
+                    Text = article.FirstTitle
+                };
+                stackPanel.Children.Add(articleWebsite);
+            }
         }
-
     }
 }
